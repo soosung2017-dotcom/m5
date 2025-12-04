@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모바일 골프 머니 계산기 v9 (15~18홀 특수룰 + 저장/통계)</title>
+<style>
+body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:10px; }
+h2 { text-align:center; margin-top:4px; }
+.card { background:#ffffff; border-radius:10px; padding:12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+label { font-weight:bold; display:block; margin-top:8px; }
+input, select { width:100%; font-size:16px; padding:8px; margin-top:4px; box-sizing:border-box; }
+.name-input { margin-bottom:4px; }
+button { padding:10px; font-size:15px; margin-top:8px; border:none; border-radius:6px; cursor:pointer; }
+.btn-main { background:#007bff; color:white; width:100%; }
+.btn-reset { background:#e0e0e0; width:100%; }
+.btn-small-row { display:flex; gap:8px; flex-wrap:wrap; }
+.btn-sub { background:#4caf50; color:white; flex:1 1 45%; }
+.btn-sub2 { background:#9c27b0; color:white; flex:1 1 45%; }
+.btn-sub3 { background:#ff9800; color:white; flex:1 1 45%; }
+.btn-sub4 { background:#f44336; color:white; flex:1 1 45%; }
+.btn-sub5 { background:#3f51b5; color:white; flex:1 1 45%; }
+.result-line { margin:4px 0; }
+.result-name { font-weight:bold; }
+.note { font-size:12px; color:#555; }
+.current-hole-line { margin:2px 0; }
+.small-text { font-size:11px; color:#666; }
+.stats-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+.stats-table th, .stats-table td { border:1px solid #ddd; padding:4px; text-align:center; }
+.stats-table th { background:#f0f0f0; }
+</style>
+</head>
+<body>
+
+<h2>⛳ 모바일 골프 머니 계산기 v9</h2>
+
+<div class="card">
+  <div class="small-text">
+    - 15·16·17홀: <b>무조건 배판(타당 ×2)</b><br>
+    - 18홀: <b>타당/버디/이글 없음</b>, 전원 $20 스킨 게임만 진행 (파 이하 최소 타수자 우승)<br>
+    &nbsp;&nbsp;· 1명만 파 이하 → $80 전액 획득<br>
+    &nbsp;&nbsp;· 2명 파 이하 동타 → 두 명이 $40씩 나눠가짐<br>
+    &nbsp;&nbsp;· 3명 이상 동타 또는 파 이하 없음 → 전원 $20 그대로 환불
+  </div>
+</div>
+
+<div class="card">
+  <label>플레이어 수</label>
+  <select id="playerCount">
+    <option value="2">2명</option>
+    <option value="3">3명</option>
+    <option value="4" selected>4명</option>
+    <option value="5">5명</option>
+  </select>
+
+  <label>기본 타당 ($)</label>
+  <input id="rate" type="number" value="2">
+
+  <label>버디 ($)</label>
+  <input id="birdie" type="number" value="5">
+
+  <label>이글 ($)</label>
+  <input id="eagle" type="number" value="20">
+
+  <label>스킨 ($)</label>
+  <input id="skin" type="number" value="2">
+
+  <label>스킨 최대홀</label>
+  <input id="skinMax" type="number" value="3">
+
+  <label>스킨 배판</label>
+  <select id="skinCarry">
+    <option value="1" selected>ON</option>
+    <option value="0">OFF</option>
+  </select>
+</div>
+
+<div class="card" id="nameCard">
+  <h3>플레이어 이름</h3>
+  <div id="nameArea"></div>
+</div>
+
+<div class="card">
+  <h3>현재 홀 입력</h3>
+
+  <label>홀 번호</label>
+  <select id="holeSelect"></select>
+
+  <label>파 (Par)</label>
+  <select id="parInput">
+    <option value="3">3</option>
+    <option value="4" selected>4</option>
+    <option value="5">5</option>
+  </select>
+
+  <div id="strokeArea"></div>
+
+  <div class="btn-small-row">
+    <button class="btn-main" onclick="saveHoleAndCalculate()">이 홀 저장 + 전체 계산</button>
+    <button class="btn-reset" onclick="resetAll()">전체 리셋</button>
+  </div>
+
+  <div class="btn-small-row">
+    <button class="btn-sub" onclick="viewSelectedHole()">선택 홀 결과만 보기</button>
+  </div>
+
+  <div class="note">
+    - "이 홀 저장 + 전체 계산" : 이 홀 스코어를 저장하고, 지금까지의 누적 결과를 갱신합니다.<br>
+    - "선택 홀 결과만 보기" : 위에서 선택한 홀 번호 기준으로, <b>그 홀만 다시 계산</b>해서 보여줍니다. (이미 저장된 점수 기준)
+  </div>
+</div>
+
+<div class="card">
+  <h3>현재/선택 홀 결과</h3>
+  <div id="currentHoleResult">아직 계산된 홀이 없습니다.</div>
+</div>
+
+<div class="card">
+  <h3>전체 누적 결과</h3>
+  <div id="totalResult">아직 저장된 홀이 없습니다.</div>
+  <div class="btn-small-row">
+    <button class="btn-sub" onclick="copyResult()">결과 텍스트 복사</button>
+    <button class="btn-sub2" onclick="downloadResult()">결과 파일 저장(.txt)</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>경기 저장 & 불러오기</h3>
+
+  <label>이번 경기 이름 / 메모</label>
+  <input id="gameName" placeholder="예: 2025-12-10 강남 라운드">
+
+  <div class="btn-small-row">
+    <button class="btn-sub3" onclick="saveCurrentGame()">현재 경기 저장 (로컬)</button>
+  </div>
+
+  <label>저장된 경기 목록</label>
+  <select id="savedGamesSelect"></select>
+
+  <div class="btn-small-row">
+    <button class="btn-sub" onclick="loadSelectedGame()">선택 경기 불러오기</button>
+    <button class="btn-sub4" onclick="deleteSelectedGame()">선택 경기 삭제</button>
+  </div>
+
+  <div class="small-text">
+    - 경기는 브라우저(핸드폰) 안에만 저장됩니다. 같은 기기·같은 브라우저에서만 불러올 수 있습니다.<br>
+    - 브라우저 캐시/데이터를 완전히 지우면 저장된 기록도 함께 삭제됩니다.
+  </div>
+</div>
+
+<div class="card">
+  <h3>플레이어 통계 (저장된 모든 경기 기준)</h3>
+  <div class="btn-small-row">
+    <button class="btn-sub5" onclick="recalcStats()">통계 새로 계산</button>
+  </div>
+  <div class="small-text">
+    - 저장된 모든 경기를 합쳐서, <b>플레이어 이름별</b>로 통계를 계산합니다.<br>
+    - 이름이 정확히 같은 경우만 같은 사람으로 인식합니다. (띄어쓰기/철자 다르면 다른 사람으로 처리)
+  </div>
+  <div id="statsArea">아직 통계가 없습니다. 먼저 경기를 저장해 주세요.</div>
+</div>
+
+<script>
+let players = 4;
+const maxHoles = 18;
+let pars = new Array(maxHoles + 1).fill(4);
+let scores = [];  // [hole][player]
+let initialized = false;
+let lastSummaryText = "";
+const STORAGE_KEY = "golf_games_v1";
+
+function initData() {
+  scores = Array.from({length: maxHoles + 1}, () => new Array(players).fill(0));
+  initialized = true;
+}
+
+function buildHoleOptions() {
+  const sel = document.getElementById("holeSelect");
+  sel.innerHTML = "";
+  for (let h = 1; h <= maxHoles; h++) {
+    const opt = document.createElement("option");
+    opt.value = h;
+    opt.textContent = h + " 홀";
+    sel.appendChild(opt);
+  }
+}
+
+function buildNameInputs() {
+  const area = document.getElementById("nameArea");
+  area.innerHTML = "";
+  for (let i = 0; i < players; i++) {
+    const div = document.createElement("div");
+    div.innerHTML =
+      '<input class="name-input" id="name' + i +
+      '" value="Player ' + (i+1) +
+      '" oninput="updateStrokeNames()">';
+
+    area.appendChild(div);
+  }
+}
+
+function buildStrokeInputs() {
+  const area = document.getElementById("strokeArea");
+  area.innerHTML = "";
+  for (let i = 0; i < players; i++) {
+    const nameEl = document.getElementById("name" + i);
+    const nm = nameEl ? nameEl.value : ("Player " + (i+1));
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML =
+      '<label id="strokeLabel' + i + '">' + nm + ' 타수</label>' +
+      buildStrokeSelectHtml(i);
+    area.appendChild(wrapper);
+  }
+}
+
+function updateStrokeNames() {
+  for (let i = 0; i < players; i++) {
+    const nameEl = document.getElementById("name" + i);
+    const labelEl = document.getElementById("strokeLabel" + i);
+    if (nameEl && labelEl) {
+      labelEl.textContent = nameEl.value + " 타수";
+    }
+  }
+}
+
+function buildStrokeSelectHtml(idx) {
+  let html = '<select id="s' + idx + '">';
+  html += '<option value="">-</option>';
+  for (let v = 1; v <= 10; v++) {
+    html += '<option value="' + v + '">' + v + '</option>';
+  }
+  html += '</select>';
+  return html;
+}
+
+document.getElementById("playerCount").addEventListener("change", () => {
+  players = parseInt(document.getElementById("playerCount").value);
+  initData();
+  buildNameInputs();
+  buildStrokeInputs();
+  updateTotalResult();
+  document.getElementById("currentHoleResult").innerHTML = "아직 계산된 홀이 없습니다.";
+  lastSummaryText = "";
+});
+
+function saveHoleAndCalculate() {
+  if (!initialized) initData();
+
+  const h = parseInt(document.getElementById("holeSelect").value);
+  const parVal = Number(document.getElementById("parInput").value) || 0;
+  pars[h] = parVal;
+
+  for (let i = 0; i < players; i++) {
+    const sel = document.getElementById("s" + i);
+    const val = sel.value === "" ? 0 : Number(sel.value);
+    scores[h][i] = val;
+  }
+
+  calculateTotals(h);
+}
+
+function viewSelectedHole() {
+  if (!initialized) {
+    document.getElementById("currentHoleResult").innerHTML = "아직 저장된 홀이 없습니다.";
+    return;
+  }
+  const h = parseInt(document.getElementById("holeSelect").value);
+  calculateTotals(h);
+}
+
+function calculateTotals(currentHole) {
+  const baseRate = Number(document.getElementById("rate").value) || 0;
+  const birdie = Number(document.getElementById("birdie").value) || 0;
+  const eagle = Number(document.getElementById("eagle").value) || 0;
+  const skin = Number(document.getElementById("skin").value) || 0;
+  const carryOn = document.getElementById("skinCarry").value === "1";
+  const maxPayout = Math.max(1, Number(document.getElementById("skinMax").value) || 1);
+
+  let totalMoney = new Array(players).fill(0);
+  let totalStrokes = new Array(players).fill(0);
+  let totalPar = 0;
+  let playerSkins = new Array(players).fill(0);
+
+  let skinQueue = [];
+  let nextRateMult = 1;
+
+  let currentHoleMoney = new Array(players).fill(0);
+  let currentHoleSkins = 0;
+  let currentHoleValid = false;
+
+  for (let h = 1; h <= maxHoles; h++) {
+    const par = pars[h] || 0;
+    let holeScores = scores[h] || new Array(players).fill(0);
+    const positiveScores = holeScores.filter(v => v > 0);
+    if (positiveScores.length < players || par <= 0) continue;
+
+    totalPar += par;
+    for (let i = 0; i < players; i++) {
+      if (holeScores[i] > 0) totalStrokes[i] += holeScores[i];
+    }
+
+    let holeMoney = new Array(players).fill(0);
+    let holeSkinsWon = 0;
+
+    if (h === 18) {
+      const potPerPlayer = 20;
+      const totalPot = potPerPlayer * players;
+      let underOrParIdx = [];
+      for (let i = 0; i < players; i++) {
+        const s = holeScores[i];
+        if (s > 0 && s <= par) underOrParIdx.push(i);
+      }
+      if (underOrParIdx.length === 1) {
+        const w = underOrParIdx[0];
+        for (let i = 0; i < players; i++) holeMoney[i] -= potPerPlayer;
+        holeMoney[w] += totalPot;
+      } else if (underOrParIdx.length === 2) {
+        const w1 = underOrParIdx[0];
+        const w2 = underOrParIdx[1];
+        for (let i = 0; i < players; i++) holeMoney[i] -= potPerPlayer;
+        const share = totalPot / 2;
+        holeMoney[w1] += share;
+        holeMoney[w2] += share;
+      } else {
+        // 환불
+      }
+
+      for (let i = 0; i < players; i++) {
+        totalMoney[i] += holeMoney[i];
+      }
+      if (h === currentHole) {
+        currentHoleValid = true;
+        for (let i = 0; i < players; i++) currentHoleMoney[i] = holeMoney[i];
+        currentHoleSkins = 0;
+      }
+      continue;
+    }
+
+    const rateMult = (h >= 15 && h <= 17) ? 2 : nextRateMult;
+    const holeRate = baseRate * rateMult;
+
+    for (let i = 0; i < players; i++) {
+      for (let j = i + 1; j < players; j++) {
+        const diff = holeScores[i] - holeScores[j];
+        if (diff > 0) {
+          holeMoney[i] -= diff * holeRate;
+          holeMoney[j] += diff * holeRate;
+        } else if (diff < 0) {
+          holeMoney[i] += Math.abs(diff) * holeRate;
+          holeMoney[j] -= Math.abs(diff) * holeRate;
+        }
+      }
+    }
+
+    holeScores.forEach((s, i) => {
+      if (s > 0 && s <= par - 2) {
+        holeMoney[i] += eagle * (players - 1);
+        for (let j = 0; j < players; j++) if (j !== i) holeMoney[j] -= eagle;
+      } else if (s === par - 1) {
+        holeMoney[i] += birdie * (players - 1);
+        for (let j = 0; j < players; j++) if (j !== i) holeMoney[j] -= birdie;
+      }
+    });
+
+    const min = Math.min(...holeScores);
+    const winCount = holeScores.filter(v => v === min).length;
+
+    if (winCount === 1 && min <= par) {
+      const winnerIdx = holeScores.indexOf(min);
+      if (carryOn) {
+        skinQueue.push(h);
+        const totalSkinsCarry = skinQueue.length;
+        const payable = Math.min(totalSkinsCarry, maxPayout);
+        if (payable > 0) {
+          holeMoney[winnerIdx] += skin * (players - 1) * payable;
+          for (let j = 0; j < players; j++) if (j !== winnerIdx) holeMoney[j] -= skin * payable;
+          skinQueue = skinQueue.slice(payable);
+          holeSkinsWon = payable;
+          playerSkins[winnerIdx] += payable;
+        }
+      } else {
+        holeMoney[winnerIdx] += skin * (players - 1);
+        for (let j = 0; j < players; j++) if (j !== winnerIdx) holeMoney[j] -= skin;
+        holeSkinsWon = 1;
+        playerSkins[winnerIdx] += 1;
+      }
+    } else {
+      if (carryOn) skinQueue.push(h);
+    }
+
+    for (let i = 0; i < players; i++) {
+      totalMoney[i] += holeMoney[i];
+    }
+
+    if (h === currentHole) {
+      currentHoleValid = true;
+      for (let i = 0; i < players; i++) currentHoleMoney[i] = holeMoney[i];
+      currentHoleSkins = holeSkinsWon;
+    }
+
+    let nextMult = 1;
+    const positiveScores2 = holeScores.filter(v => v > 0);
+    if (positiveScores2.length === players) {
+      const hasBirdieOrBetter = holeScores.some(s => s > 0 && s <= par - 1);
+      const hasTripleOrWorse = holeScores.some(s => s >= par + 3);
+      const allEqual = holeScores.every(s => s === holeScores[0] && s > 0);
+      if (hasBirdieOrBetter || hasTripleOrWorse || allEqual) nextMult = 2;
+    }
+    nextRateMult = nextMult;
+  }
+
+  let totalHtml = "";
+  let summaryText = "⛳ 골프 누적 결과\n";
+  if (totalPar === 0) {
+    totalHtml = "아직 저장된 홀이 없습니다.";
+    summaryText += "아직 저장된 홀이 없습니다.\n";
+  } else {
+    totalHtml += "총 파: " + totalPar + "<br>";
+    summaryText += "총 파: " + totalPar + "\n";
+    for (let i = 0; i < players; i++) {
+      const nmEl = document.getElementById("name" + i);
+      const name = nmEl ? nmEl.value : ("Player " + (i+1));
+      totalHtml +=
+        '<div class="result-line"><span class="result-name">' + name +
+        '</span> : $' + totalMoney[i].toFixed(0) +
+        ' / 총 타수 ' + totalStrokes[i] +
+        ' / 스킨 ' + playerSkins[i] + '개</div>';
+      summaryText +=
+        name + " : $" + totalMoney[i].toFixed(0) +
+        " / 총 타수 " + totalStrokes[i] +
+        " / 스킨 " + playerSkins[i] + "개\n";
+    }
+  }
+  document.getElementById("totalResult").innerHTML = totalHtml;
+  lastSummaryText = summaryText;
+
+  let curHtml = "";
+  if (!currentHoleValid) {
+    curHtml = "선택한 홀은 아직 계산할 수 없습니다. (모든 플레이어 타수와 파를 확인해 주세요.)";
+  } else {
+    curHtml += currentHole + " 홀 (Par " + pars[currentHole] + ")<br>";
+    for (let i = 0; i < players; i++) {
+      const nmEl = document.getElementById("name" + i);
+      const name = nmEl ? nmEl.value : ("Player " + (i+1));
+      const m = currentHoleMoney[i];
+      const sign = m >= 0 ? "+" : "";
+      curHtml +=
+        '<div class="current-hole-line">' +
+        name + " : " + sign + "$" + m.toFixed(0) +
+        "</div>";
+    }
+    curHtml +=
+      '<div class="current-hole-line"><b>이 홀에서 나온 스킨 합계: ' +
+      currentHoleSkins + "개</b></div>";
+  }
+  document.getElementById("currentHoleResult").innerHTML = curHtml;
+}
+
+function copyResult() {
+  if (!lastSummaryText || lastSummaryText.trim() === "") {
+    alert("저장된 결과가 없습니다. 먼저 홀을 입력하고 계산해 주세요.");
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(lastSummaryText)
+      .then(() => alert("누적 결과를 클립보드에 복사했습니다.\n카카오톡/메모장 등에 붙여넣기 하세요."))
+      .catch(() => {
+        alert("복사에 실패했습니다. 화면의 내용을 길게 눌러 직접 복사해 주세요.");
+      });
+  } else {
+    alert("이 브라우저에서는 자동 복사가 지원되지 않습니다.\n화면의 결과를 길게 눌러 직접 복사해 주세요.\n\n" + lastSummaryText);
+  }
+}
+
+function downloadResult() {
+  if (!lastSummaryText || lastSummaryText.trim() === "") {
+    alert("저장된 결과가 없습니다. 먼저 홀을 입력하고 계산해 주세요.");
+    return;
+  }
+  const blob = new Blob([lastSummaryText], {type: "text/plain"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "golf_result.txt";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function resetAll() {
+  players = parseInt(document.getElementById("playerCount").value);
+  pars = new Array(maxHoles + 1).fill(4);
+  initData();
+  buildNameInputs();
+  buildStrokeInputs();
+  document.getElementById("parInput").value = "4";
+  document.getElementById("holeSelect").value = "1";
+  updateTotalResult();
+  document.getElementById("currentHoleResult").innerHTML = "아직 계산된 홀이 없습니다.";
+  lastSummaryText = "";
+}
+
+function loadSavedGamesFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr;
+  } catch(e) {
+    console.error(e);
+    return [];
+  }
+}
+
+function saveGamesToStorage(games) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function updateSavedGamesUI() {
+  const select = document.getElementById("savedGamesSelect");
+  const games = loadSavedGamesFromStorage();
+  select.innerHTML = "";
+  if (games.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "저장된 경기가 없습니다";
+    select.appendChild(opt);
+    return;
+  }
+  games.forEach((g, idx) => {
+    const opt = document.createElement("option");
+    opt.value = g.id;
+    const dateStr = g.time ? new Date(g.time).toLocaleString() : "";
+    opt.textContent = (g.name || "이름 없음") + " (" + dateStr + ")";
+    select.appendChild(opt);
+  });
+}
+
+function collectCurrentGameObject() {
+  const game = {
+    id: Date.now().toString(),
+    name: document.getElementById("gameName").value || "이름 없는 경기",
+    time: Date.now(),
+    players: players,
+    rate: Number(document.getElementById("rate").value) || 0,
+    birdie: Number(document.getElementById("birdie").value) || 0,
+    eagle: Number(document.getElementById("eagle").value) || 0,
+    skin: Number(document.getElementById("skin").value) || 0,
+    skinMax: Number(document.getElementById("skinMax").value) || 1,
+    skinCarry: document.getElementById("skinCarry").value,
+    names: [],
+    pars: pars.slice(),
+    scores: scores.map(row => row.slice())
+  };
+  for (let i = 0; i < players; i++) {
+    const nmEl = document.getElementById("name" + i);
+    game.names.push(nmEl ? nmEl.value : ("Player " + (i+1)));
+  }
+  return game;
+}
+
+function saveCurrentGame() {
+  if (!initialized) {
+    alert("먼저 홀을 입력하고 계산해 주세요.");
+    return;
+  }
+  let hasAnyScore = false;
+  for (let h = 1; h <= maxHoles; h++) {
+    if (scores[h] && scores[h].some(v => v > 0)) {
+      hasAnyScore = true;
+      break;
+    }
+  }
+  if (!hasAnyScore) {
+    alert("저장할 스코어가 없습니다. 먼저 몇 개 홀이라도 입력해 주세요.");
+    return;
+  }
+  const games = loadSavedGamesFromStorage();
+  const gameObj = collectCurrentGameObject();
+  games.push(gameObj);
+  saveGamesToStorage(games);
+  updateSavedGamesUI();
+  alert("현재 경기를 저장했습니다.");
+}
+
+function loadSelectedGame() {
+  const select = document.getElementById("savedGamesSelect");
+  const id = select.value;
+  if (!id) {
+    alert("불러올 경기를 선택해 주세요.");
+    return;
+  }
+  const games = loadSavedGamesFromStorage();
+  const game = games.find(g => g.id === id);
+  if (!game) {
+    alert("선택한 경기를 찾을 수 없습니다.");
+    return;
+  }
+
+  players = game.players || 4;
+  document.getElementById("playerCount").value = String(players);
+  pars = new Array(maxHoles + 1).fill(4);
+  initData();
+
+  document.getElementById("rate").value = game.rate;
+  document.getElementById("birdie").value = game.birdie;
+  document.getElementById("eagle").value = game.eagle;
+  document.getElementById("skin").value = game.skin;
+  document.getElementById("skinMax").value = game.skinMax;
+  document.getElementById("skinCarry").value = game.skinCarry || "1";
+
+  buildNameInputs();
+  buildStrokeInputs();
+
+  if (Array.isArray(game.names)) {
+    for (let i = 0; i < players; i++) {
+      if (game.names[i] !== undefined) {
+        const nmEl = document.getElementById("name" + i);
+        if (nmEl) nmEl.value = game.names[i];
+      }
+    }
+    updateStrokeNames();
+  }
+
+  if (Array.isArray(game.pars)) {
+    for (let h = 1; h <= maxHoles && h < game.pars.length; h++) {
+      pars[h] = game.pars[h];
+    }
+  }
+  if (Array.isArray(game.scores)) {
+    for (let h = 0; h < game.scores.length && h <= maxHoles; h++) {
+      if (Array.isArray(game.scores[h])) {
+        scores[h] = game.scores[h].slice();
+      }
+    }
+  }
+
+  document.getElementById("holeSelect").value = "1";
+  calculateTotals(1);
+  alert("선택한 경기를 불러왔습니다.");
+}
+
+function deleteSelectedGame() {
+  const select = document.getElementById("savedGamesSelect");
+  const id = select.value;
+  if (!id) {
+    alert("삭제할 경기를 선택해 주세요.");
+    return;
+  }
+  const games = loadSavedGamesFromStorage();
+  const newGames = games.filter(g => g.id !== id);
+  saveGamesToStorage(newGames);
+  updateSavedGamesUI();
+  alert("선택한 경기를 삭제했습니다.");
+}
+
+function updateTotalResult() {
+  document.getElementById("totalResult").innerHTML = "아직 저장된 홀이 없습니다.";
+}
+
+function computeGameStats(game) {
+  const pCount = game.players || (game.names ? game.names.length : 4);
+  const names = game.names || Array.from({length:pCount}, (_,i)=>"Player "+(i+1));
+  const rate = game.rate || 0;
+  const birdieVal = game.birdie || 0;
+  const eagleVal = game.eagle || 0;
+  const skinVal = game.skin || 0;
+  const skinMax = game.skinMax || 1;
+  const skinCarry = game.skinCarry === "0" ? false : true;
+  const parsArr = game.pars || [];
+  const scoresArr = game.scores || [];
+
+  let totalMoney = new Array(pCount).fill(0);
+  let totalStrokes = new Array(pCount).fill(0);
+  let totalHoles = new Array(pCount).fill(0);
+  let totalBirdies = new Array(pCount).fill(0);
+  let totalEagles = new Array(pCount).fill(0);
+  let totalSkins = new Array(pCount).fill(0);
+
+  let skinQueue = [];
+  let nextRateMult = 1;
+  const localMaxHoles = Math.min(maxHoles, scoresArr.length - 1);
+
+  for (let h = 1; h <= localMaxHoles; h++) {
+    const par = parsArr[h] || 0;
+    let holeScores = scoresArr[h] || new Array(pCount).fill(0);
+    const positiveScores = holeScores.filter(v => v > 0);
+    if (positiveScores.length < pCount || par <= 0) continue;
+
+    let holeMoney = new Array(pCount).fill(0);
+
+    for (let i = 0; i < pCount; i++) {
+      const s = holeScores[i];
+      if (s > 0) {
+        totalStrokes[i] += s;
+        totalHoles[i] += 1;
+        if (s <= par - 2) totalEagles[i] += 1;
+        else if (s === par - 1) totalBirdies[i] += 1;
+      }
+    }
+
+    if (h === 18) {
+      const potPerPlayer = 20;
+      const totalPot = potPerPlayer * pCount;
+      let underOrParIdx = [];
+      for (let i = 0; i < pCount; i++) {
+        const s = holeScores[i];
+        if (s > 0 && s <= par) underOrParIdx.push(i);
+      }
+      if (underOrParIdx.length === 1) {
+        const w = underOrParIdx[0];
+        for (let i = 0; i < pCount; i++) holeMoney[i] -= potPerPlayer;
+        holeMoney[w] += totalPot;
+      } else if (underOrParIdx.length === 2) {
+        const w1 = underOrParIdx[0];
+        const w2 = underOrParIdx[1];
+        for (let i = 0; i < pCount; i++) holeMoney[i] -= potPerPlayer;
+        const share = totalPot / 2;
+        holeMoney[w1] += share;
+        holeMoney[w2] += share;
+      } else {
+        // 환불
+      }
+      for (let i = 0; i < pCount; i++) totalMoney[i] += holeMoney[i];
+      continue;
+    }
+
+    const rateMult = (h >= 15 && h <= 17) ? 2 : nextRateMult;
+    const holeRate = rate * rateMult;
+
+    for (let i = 0; i < pCount; i++) {
+      for (let j = i + 1; j < pCount; j++) {
+        const diff = holeScores[i] - holeScores[j];
+        if (diff > 0) {
+          holeMoney[i] -= diff * holeRate;
+          holeMoney[j] += diff * holeRate;
+        } else if (diff < 0) {
+          holeMoney[i] += Math.abs(diff) * holeRate;
+          holeMoney[j] -= Math.abs(diff) * holeRate;
+        }
+      }
+    }
+
+    holeScores.forEach((s, i) => {
+      if (s > 0 && s <= par - 2) {
+        holeMoney[i] += eagleVal * (pCount - 1);
+        for (let j = 0; j < pCount; j++) if (j !== i) holeMoney[j] -= eagleVal;
+      } else if (s === par - 1) {
+        holeMoney[i] += birdieVal * (pCount - 1);
+        for (let j = 0; j < pCount; j++) if (j !== i) holeMoney[j] -= birdieVal;
+      }
+    });
+
+    const min = Math.min(...holeScores);
+    const winCount = holeScores.filter(v => v === min).length;
+
+    if (winCount === 1 && min <= par) {
+      const winnerIdx = holeScores.indexOf(min);
+      if (skinCarry) {
+        skinQueue.push(h);
+        const totalSkinsCarry = skinQueue.length;
+        const payable = Math.min(totalSkinsCarry, skinMax);
+        if (payable > 0) {
+          holeMoney[winnerIdx] += skinVal * (pCount - 1) * payable;
+          for (let j = 0; j < pCount; j++) if (j !== winnerIdx) holeMoney[j] -= skinVal * payable;
+          skinQueue = skinQueue.slice(payable);
+          totalSkins[winnerIdx] += payable;
+        }
+      } else {
+        holeMoney[winnerIdx] += skinVal * (pCount - 1);
+        for (let j = 0; j < pCount; j++) if (j !== winnerIdx) holeMoney[j] -= skinVal;
+        totalSkins[winnerIdx] += 1;
+      }
+    } else {
+      if (skinCarry) skinQueue.push(h);
+    }
+
+    for (let i = 0; i < pCount; i++) totalMoney[i] += holeMoney[i];
+
+    let nextMult = 1;
+    const positiveScores2 = holeScores.filter(v => v > 0);
+    if (positiveScores2.length === pCount) {
+      const hasBirdieOrBetter = holeScores.some(s => s > 0 && s <= par - 1);
+      const hasTripleOrWorse = holeScores.some(s => s >= par + 3);
+      const allEqual = holeScores.every(s => s === holeScores[0] && s > 0);
+      if (hasBirdieOrBetter || hasTripleOrWorse || allEqual) nextMult = 2;
+    }
+    nextRateMult = nextMult;
+  }
+
+  return { names, totalMoney, totalStrokes, totalHoles, totalBirdies, totalEagles, totalSkins };
+}
+
+function recalcStats() {
+  const games = loadSavedGamesFromStorage();
+  const statsDiv = document.getElementById("statsArea");
+  if (!games || games.length === 0) {
+    statsDiv.innerHTML = "저장된 경기가 없습니다. 먼저 경기를 하나 이상 저장해 주세요.";
+    return;
+  }
+
+  const agg = {};
+  games.forEach(game => {
+    const gStats = computeGameStats(game);
+    const names = gStats.names;
+    for (let i = 0; i < names.length; i++) {
+      const name = names[i] || ("Player " + (i+1));
+      if (!agg[name]) {
+        agg[name] = {
+          games: 0,
+          totalMoney: 0,
+          totalStrokes: 0,
+          totalHoles: 0,
+          birdies: 0,
+          eagles: 0,
+          skins: 0
+        };
+      }
+      if (gStats.totalHoles[i] > 0) {
+        agg[name].games += 1;
+        agg[name].totalMoney += gStats.totalMoney[i];
+        agg[name].totalStrokes += gStats.totalStrokes[i];
+        agg[name].totalHoles += gStats.totalHoles[i];
+        agg[name].birdies += gStats.totalBirdies[i];
+        agg[name].eagles += gStats.totalEagles[i];
+        agg[name].skins += gStats.totalSkins[i];
+      }
+    }
+  });
+
+  const namesSorted = Object.keys(agg).sort();
+  if (namesSorted.length === 0) {
+    statsDiv.innerHTML = "통계를 계산할 수 있는 데이터가 없습니다. (저장된 경기의 스코어를 확인해 주세요.)";
+    return;
+  }
+
+  let html = '<table class="stats-table"><tr>' +
+    '<th>이름</th><th>경기 수</th><th>총 홀 수</th><th>18홀 기준 평균 타수</th>' +
+    '<th>총 버디</th><th>총 이글</th><th>총 스킨</th>' +
+    '<th>총 금액($)</th><th>경기당 평균 금액($)</th></tr>';
+
+  namesSorted.forEach(name => {
+    const s = agg[name];
+    const avgMoneyPerGame = s.games > 0 ? (s.totalMoney / s.games) : 0;
+    const avgStroke18 = s.totalHoles > 0 ? (s.totalStrokes / s.totalHoles) * 18 : 0;
+    html += "<tr>" +
+      "<td>" + name + "</td>" +
+      "<td>" + s.games + "</td>" +
+      "<td>" + s.totalHoles + "</td>" +
+      "<td>" + avgStroke18.toFixed(1) + "</td>" +
+      "<td>" + s.birdies + "</td>" +
+      "<td>" + s.eagles + "</td>" +
+      "<td>" + s.skins + "</td>" +
+      "<td>" + s.totalMoney.toFixed(0) + "</td>" +
+      "<td>" + avgMoneyPerGame.toFixed(1) + "</td>" +
+      "</tr>";
+  });
+
+  html += "</table>";
+  statsDiv.innerHTML = html;
+}
+
+function init() {
+  players = parseInt(document.getElementById("playerCount").value);
+  initData();
+  buildHoleOptions();
+  buildNameInputs();
+  buildStrokeInputs();
+  updateTotalResult();
+  document.getElementById("currentHoleResult").innerHTML = "아직 계산된 홀이 없습니다.";
+  updateSavedGamesUI();
+}
+
+init();
+</script>
+
+</body>
+</html>
